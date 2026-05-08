@@ -55,6 +55,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
         let durationDays;
         switch (plan_name) {
             case 'Trial': durationDays = 1; break;
+            case '1-Minute Trial': durationDays = 1/1440; break;  // 1 minute = 1/1440 days
             case 'Monthly': durationDays = 30; break;
             case 'Annual': durationDays = 365; break;
             default:
@@ -77,7 +78,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
             );
 
             const [membershipResult] = await connection.query(
-                `INSERT INTO memberships (user_id, plan_name, duration_days, end_date, status)
+                `INSERT INTO memberships (user_id, plan_name, duration_months, end_date, status)
                  VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), 'Active')`,
                 [user_id, plan_name, durationDays, durationDays]
             );

@@ -12,10 +12,10 @@ router.get('/membership/status/:userId', verifyToken, async (req, res) => {
         }
 
         const [rows] = await pool.query(`
-            SELECT m.id, m.plan_name, m.duration_days, m.start_date, m.end_date, m.status,
+            SELECT m.id, m.plan_name, m.duration_months, m.start_date, m.end_date, m.status,
                    TIMESTAMPDIFF(SECOND, NOW(), m.end_date) as seconds_remaining
             FROM memberships m
-            WHERE m.user_id = ? AND m.status != 'Expired'
+            WHERE m.member_id = ? AND m.status != 'expired'
             ORDER BY m.id DESC
             LIMIT 1
         `, [userId]);
