@@ -192,6 +192,21 @@ async function initDatabase() {
         await safeAddColumn(connection, 'memberships', 'duration_minutes', 'INT NULL');
         await safeAddColumn(connection, 'memberships', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
         
+        // RENAME member_id TO user_id IF EXISTS
+        try {
+            const [rows] = await connection.query(
+                "SHOW COLUMNS FROM memberships LIKE 'member_id'"
+            );
+            if (rows.length > 0) {
+                await connection.query(
+                    "ALTER TABLE memberships CHANGE COLUMN member_id user_id INT NOT NULL"
+                );
+                console.log("Renamed member_id to user_id in memberships table");
+            }
+        } catch (err) {
+            console.log("Column rename skipped:", err.message);
+        }
+        
         // Safe column modifications
         await safeModifyColumn(connection, 'memberships', 'plan_name', "ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial'");
         await safeModifyColumn(connection, 'memberships', 'status', "ENUM('Pending','Active','Expired') DEFAULT 'Pending'");
