@@ -187,44 +187,14 @@ async function initDatabase() {
             )
         `);
 
-        // FIX EXISTING TABLES TO USE CORRECT SCHEMA
-        try {
-            // Update memberships table structure
-            await connection.query(`
-                ALTER TABLE memberships
-                MODIFY plan_name ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial'
-            `);
-        } catch (err) {
-            // Column might not exist or already have correct type
-            console.log('plan_name column update skipped:', err.message);
-        }
+        // SAFE COLUMN MIGRATIONS - Check before adding columns
+        await safeAddColumn(connection, 'memberships', 'duration_days', 'INT DEFAULT 0');
+        await safeAddColumn(connection, 'memberships', 'duration_minutes', 'INT NULL');
+        await safeAddColumn(connection, 'memberships', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
         
-        try {
-            await connection.query(`
-                ALTER TABLE memberships
-                MODIFY status ENUM('Pending','Active','Expired') DEFAULT 'Pending'
-            `);
-        } catch (err) {
-            console.log('status column update skipped:', err.message);
-        }
-        
-        try {
-            await connection.query(`
-                ALTER TABLE memberships
-                ADD COLUMN IF NOT EXISTS duration_days INT NOT NULL DEFAULT 0
-            `);
-        } catch (err) {
-            console.log('duration_days column update skipped:', err.message);
-        }
-        
-        try {
-            await connection.query(`
-                ALTER TABLE memberships
-                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            `);
-        } catch (err) {
-            console.log('updated_at column update skipped:', err.message);
-        }
+        // Safe column modifications
+        await safeModifyColumn(connection, 'memberships', 'plan_name', "ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial'");
+        await safeModifyColumn(connection, 'memberships', 'status', "ENUM('Pending','Active','Expired') DEFAULT 'Pending'");
 
         // DEFAULT ADMINS
         const bcrypt = require('bcryptjs');
@@ -272,13 +242,45 @@ async function initDatabase() {
         ]);
 
         console.log('Database initialized successfully');
-
     } catch (err) {
         console.error('Database init error:', err);
     } finally {
         if (connection) {
             connection.release();
         }
+    }
+}
+
+// Safe column addition helper
+async function safeAddColumn(connection, tableName, columnName, columnDefinition) {
+    try {
+        const [rows] = await connection.query(
+            `SHOW COLUMNS FROM ${tableName} LIKE ?`,
+            [columnName]
+        );
+        
+        if (rows.length === 0) {
+            await connection.query(
+                `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`
+            );
+            console.log(`Added column ${columnName} to ${tableName}`);
+        } else {
+            console.log(`Column ${columnName} already exists in ${tableName}`);
+        }
+    } catch (err) {
+        console.log(`Column ${columnName} update skipped:`, err.message);
+    }
+}
+
+// Safe column modification helper
+async function safeModifyColumn(connection, tableName, columnName, columnDefinition) {
+    try {
+        await connection.query(
+            `ALTER TABLE ${tableName} MODIFY COLUMN ${columnName} ${columnDefinition}`
+        );
+        console.log(`Modified column ${columnName} in ${tableName}`);
+    } catch (err) {
+        console.log(`Column ${columnName} modification skipped:`, err.message);
     }
 }
 
