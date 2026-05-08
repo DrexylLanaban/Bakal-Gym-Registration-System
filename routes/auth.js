@@ -44,9 +44,12 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
+        const jwtSecret = process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026';
+        console.log('JWT Secret available:', !!jwtSecret);
+        
         const token = jwt.sign(
             { id: user.id, username: user.username, role, full_name: user.full_name },
-            process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026',
+            jwtSecret,
             { expiresIn: '7d' }
         );
 
