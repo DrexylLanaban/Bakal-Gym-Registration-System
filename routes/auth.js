@@ -1,0 +1,124 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { pool } = require('../database/db');
+const { verifyToken } = require('../middleware/auth');
+require('dotenv').config();
+
+const router = express.Router();
+
+router.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({ success: false, message: 'Username and password required' });
+        }
+
+        let [rows] = await pool.query(`SELECT id, username, password, full_name, email, profile_photo, 'admin' as role FROM admins WHERE username = ?`, [username]);
+        let user = rows[0];
+        let role = 'admin';
+
+        if (!user) {
+            [rows] = await pool.query(`SELECT id, username, password, full_name, email, status, 'user' as role FROM users WHERE username = ?`, [username]);
+            user = rows[0];
+            role = 'user';
+        }
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        if (role === 'user' && user.status === 'inactive') {
+            return res.status(403).json({ success: false, message: 'Account is inactive' });
+        }
+
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        const token = jwt.sign(
+            { id: user.id, username: user.username, role, full_name: user.full_name },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                full_name: user.full_name,
+                email: user.email,
+                role,
+                profile_photo: user.profile_photo || null
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+router.post('/register', async (req, res) => {
+    try {
+        const { username, password, full_name, email, phone, address } = req.body;
+        if (!username || !password || !full_name || !email) {
+            return res.status(400).json({ success: false, message: 'Required fields missing' });
+        }
+
+        const [existing] = await pool.query(`SELECT id FROM users WHERE username = ? OR email = ?`, [username, email]);
+        if (existing.length > 0) {
+            return res.status(409).json({ success: false, message: 'Username or email already exists' });
+        }
+
+        const hash = await bcrypt.hash(password, 10);
+        const [result] = await pool.query(
+            `INSERT INTO users (username, password, full_name, email, phone, address) VALUES (?, ?, ?, ?, ?, ?)`,
+            [username, hash, full_name, email, phone || null, address || null]
+        );
+
+        const token = jwt.sign(
+            { id: result.insertId, username, role: 'user', full_name },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(201).json({
+            success: true,
+            token,
+            user: {
+                id: result.insertId,
+                username,
+                full_name,
+                email,
+                role: 'user'
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+router.get('/me', verifyToken, async (req, res) => {
+    try {
+        let rows;
+        if (req.user.role === 'admin') {
+            [rows] = await pool.query(`SELECT id, username, full_name, email, profile_photo FROM admins WHERE id = ?`, [req.user.id]);
+        } else {
+            [rows] = await pool.query(`SELECT id, username, full_name, email, phone, address, status FROM users WHERE id = ?`, [req.user.id]);
+        }
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.json({ success: true, user: { ...rows[0], role: req.user.role } });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+module.exports = router;
