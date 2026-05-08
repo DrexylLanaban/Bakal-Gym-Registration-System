@@ -4,17 +4,29 @@ Node.js + Express + MySQL REST API for the Bakal Gym Registration System.
 
 ## Deployment on Render
 
+### Important: `.env` is NOT deployed
+The `.env` file is excluded by `.gitignore`. You **must** set environment variables in the Render dashboard (Environment tab).
+
+### Option A: Individual Variables
 1. Push this folder to GitHub
 2. Create a new Web Service on [Render](https://render.com)
 3. Connect your GitHub repo
-4. Set environment variables:
+4. Go to **Environment** tab and add:
    - `DB_HOST` - your MySQL host
+   - `DB_PORT` - MySQL port (usually 3306)
    - `DB_USER` - MySQL username
    - `DB_PASSWORD` - MySQL password
    - `DB_NAME` - MySQL database name
    - `JWT_SECRET` - a strong secret key
-   - `PORT` - 3000
-5. Deploy
+   - `PORT` - 10000 (or let Render auto-assign)
+5. Click **Deploy**
+
+### Option B: DATABASE_URL (Recommended)
+If your MySQL host provides a connection URL (e.g., Railway), set **only**:
+- `DATABASE_URL` - full MySQL connection string (e.g., `mysql://user:pass@host:port/db`)
+- `JWT_SECRET` - a strong secret key
+
+SSL is automatically enabled for remote hosts.
 
 ## Default Admin Accounts
 

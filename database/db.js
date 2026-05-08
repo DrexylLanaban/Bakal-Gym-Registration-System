@@ -1,14 +1,46 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+function parseDbUrl(url) {
+    try {
+        const parsed = new URL(url);
+        return {
+            host: parsed.hostname,
+            port: parseInt(parsed.port) || 3306,
+            user: parsed.username,
+            password: decodeURIComponent(parsed.password),
+            database: parsed.pathname.replace(/^\//, '')
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+let dbConfig;
+if (process.env.DATABASE_URL) {
+    dbConfig = parseDbUrl(process.env.DATABASE_URL);
+} else {
+    dbConfig = {
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT) || 3306,
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+        database: process.env.DB_NAME || 'bakal_gym'
+    };
+}
+
+const isRemote = dbConfig.host !== 'localhost' && dbConfig.host !== '127.0.0.1';
+
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'bakal_gym',
+    ...dbConfig,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    connectTimeout: 30000,
+    acquireTimeout: 30000,
+    ...(isRemote ? {
+        ssl: { rejectUnauthorized: false }
+    } : {})
 });
 
 async function initDatabase() {
