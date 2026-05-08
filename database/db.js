@@ -106,14 +106,13 @@ async function initDatabase() {
             CREATE TABLE IF NOT EXISTS memberships (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
-                plan_name VARCHAR(100) NULL,
-                duration_months INT NOT NULL,
-                duration_minutes INT NULL,
-                start_date DATETIME NOT NULL,
-                end_date DATETIME NOT NULL,
-                status ENUM('active', 'expired', 'pending') DEFAULT 'active',
-                price DECIMAL(10,2) NULL,
+                plan_name ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial',
+                duration_days INT NOT NULL,
+                start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                end_date TIMESTAMP NOT NULL,
+                status ENUM('Pending','Active','Expired') DEFAULT 'Pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
@@ -188,39 +187,44 @@ async function initDatabase() {
             )
         `);
 
-        // FIX EXISTING TABLES TO USE user_id CONSISTENTLY
-        await connection.query(`
-            ALTER TABLE memberships
-            MODIFY plan_name VARCHAR(100) NULL,
-            MODIFY price DECIMAL(10,2) NULL
-        `);
+        // FIX EXISTING TABLES TO USE CORRECT SCHEMA
+        try {
+            // Update memberships table structure
+            await connection.query(`
+                ALTER TABLE memberships
+                MODIFY plan_name ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial'
+            `);
+        } catch (err) {
+            // Column might not exist or already have correct type
+            console.log('plan_name column update skipped:', err.message);
+        }
         
-        // Add duration_minutes column if it doesn't exist
-        await connection.query(`
-            ALTER TABLE memberships
-            ADD COLUMN IF NOT EXISTS duration_minutes INT NULL
-        `);
+        try {
+            await connection.query(`
+                ALTER TABLE memberships
+                MODIFY status ENUM('Pending','Active','Expired') DEFAULT 'Pending'
+            `);
+        } catch (err) {
+            console.log('status column update skipped:', err.message);
+        }
         
-        // Update foreign key if needed
-        await connection.query(`
-            ALTER TABLE memberships
-            DROP FOREIGN KEY IF EXISTS memberships_ibfk_1
-        `);
+        try {
+            await connection.query(`
+                ALTER TABLE memberships
+                ADD COLUMN IF NOT EXISTS duration_days INT NOT NULL DEFAULT 0
+            `);
+        } catch (err) {
+            console.log('duration_days column update skipped:', err.message);
+        }
         
-        await connection.query(`
-            ALTER TABLE memberships
-            ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        `);
-        
-        await connection.query(`
-            ALTER TABLE payments
-            DROP FOREIGN KEY IF EXISTS payments_ibfk_1
-        `);
-        
-        await connection.query(`
-            ALTER TABLE payments
-            ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        `);
+        try {
+            await connection.query(`
+                ALTER TABLE memberships
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            `);
+        } catch (err) {
+            console.log('updated_at column update skipped:', err.message);
+        }
 
         // DEFAULT ADMINS
         const bcrypt = require('bcryptjs');

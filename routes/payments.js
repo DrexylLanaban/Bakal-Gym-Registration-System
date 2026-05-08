@@ -1,51 +1,19 @@
 const express = require('express');
-const { pool } = require('../database/db');
-const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { verifyToken } = require('../middleware/auth');
+const pool = require('../database/db').pool;
 
 const router = express.Router();
 
+// Generate receipt number
 function generateReceiptNumber() {
-    return 'RCP-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `RCP${timestamp}${random}`;
 }
 
-router.get('/payments', verifyToken, async (req, res) => {
-    try {
-        let query = `
-            SELECT p.id, p.receipt_number, p.plan_name, p.amount, p.payment_date, p.status,
-                   u.id as user_id, u.full_name as user_name
-            FROM payments p
-            JOIN users u ON p.user_id = u.id
-        `;
-        const params = [];
-
-        if (req.user.role !== 'admin') {
-            query += ` WHERE p.user_id = ?`;
-            params.push(req.user.id);
-        }
-
-        query += ` ORDER BY p.payment_date DESC`;
-
-        const [rows] = await pool.query(query, params);
-        res.json({ success: true, payments: rows });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-router.get('/payments/total', verifyToken, requireAdmin, async (req, res) => {
-    try {
-        const [[total]] = await pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'completed'`);
-        const [[today]] = await pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'completed' AND DATE(payment_date) = CURDATE()`);
-        res.json({ success: true, total_revenue: total.total, today_revenue: today.total });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
+// Create payment and membership
 router.post('/payments/create', verifyToken, async (req, res) => {
     try {
-
         let {
             plan_name = '1-Minute Trial',
             amount = 0
@@ -59,6 +27,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
         let durationMinutes = null;
         let durationDays = null;
         let endDateExpression;
+        
         switch (plan_name) {
             case 'Trial':
                 durationDays = 1;
@@ -91,24 +60,28 @@ router.post('/payments/create', verifyToken, async (req, res) => {
         try {
             await connection.beginTransaction();
 
+            // Update existing memberships to Expired status
             await connection.query(
-                `UPDATE memberships SET status = 'expired' WHERE user_id = ? AND status != 'expired'`,
+                `UPDATE memberships SET status = 'Expired' WHERE user_id = ? AND status != 'Expired'`,
                 [user_id]
             );
 
+            // Create payment record
             const [paymentResult] = await connection.query(
                 `INSERT INTO payments (user_id, receipt_number, plan_name, amount) VALUES (?, ?, ?, ?)`,
                 [user_id, receipt_number, plan_name, amount]
             );
 
+            // Create membership record
             const [membershipResult] = await connection.query(
-                `INSERT INTO memberships (user_id, plan_name, duration_months, duration_minutes, end_date, status)
-                 VALUES (?, ?, ?, ?, ${endDateExpression}, 'active')`,
+                `INSERT INTO memberships (user_id, plan_name, duration_days, start_date, end_date, status)
+                 VALUES (?, ?, ?, NOW(), ${endDateExpression}, 'Active')`,
                 plan_name === '1-Minute Trial' 
-                    ? [user_id, plan_name, 0, durationMinutes]
-                    : [user_id, plan_name, durationDays, null]
+                    ? [user_id, plan_name, 0]  // 0 days for 1-minute trial
+                    : [user_id, plan_name, durationDays]
             );
 
+            // Link payment to membership
             await connection.query(
                 `UPDATE payments SET membership_id = ? WHERE id = ?`,
                 [membershipResult.insertId, paymentResult.insertId]
@@ -116,28 +89,77 @@ router.post('/payments/create', verifyToken, async (req, res) => {
 
             await connection.commit();
 
+            // Get receipt details
             const [receipt] = await pool.query(`
-                SELECT p.receipt_number, p.plan_name, p.amount, p.payment_date,
-                       m.end_date, u.full_name as user_name
+                SELECT p.*, m.plan_name, m.end_date, m.status as membership_status
                 FROM payments p
-                JOIN users u ON p.user_id = u.id
-                JOIN memberships m ON m.id = ?
+                LEFT JOIN memberships m ON p.membership_id = m.id
                 WHERE p.id = ?
-            `, [membershipResult.insertId, paymentResult.insertId]);
+            `, [paymentResult.insertId]);
 
-            res.status(201).json({
-                success: true,
-                message: 'Payment completed',
-                receipt: receipt[0]
+            res.json({ 
+                success: true, 
+                message: 'Payment and membership created successfully',
+                payment: receipt[0]
             });
-        } catch (err) {
+
+        } catch (error) {
             await connection.rollback();
-            throw err;
+            throw error;
         } finally {
             connection.release();
         }
+
     } catch (err) {
-        console.error(err);
+        console.error('Payment creation error:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server error during payment processing' 
+        });
+    }
+});
+
+// Get payment history for a user
+router.get('/payments/user/:userId', verifyToken, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        if (req.user.role !== 'admin' && userId !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        const [rows] = await pool.query(`
+            SELECT p.*, m.plan_name, m.end_date, m.status as membership_status
+            FROM payments p
+            LEFT JOIN memberships m ON p.membership_id = m.id
+            WHERE p.user_id = ?
+            ORDER BY p.payment_date DESC
+        `, [userId]);
+
+        res.json({ success: true, payments: rows });
+    } catch (err) {
+        console.error('Payment history error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// Get all payments (admin only)
+router.get('/payments', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        const [rows] = await pool.query(`
+            SELECT p.*, u.username, u.full_name, m.plan_name, m.end_date, m.status as membership_status
+            FROM payments p
+            LEFT JOIN users u ON p.user_id = u.id
+            LEFT JOIN memberships m ON p.membership_id = m.id
+            ORDER BY p.payment_date DESC
+        `);
+
+        res.json({ success: true, payments: rows });
+    } catch (err) {
+        console.error('Payments list error:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
