@@ -83,7 +83,6 @@ async function initDatabase() {
                 password VARCHAR(255) NOT NULL,
                 full_name VARCHAR(150) NOT NULL,
                 email VARCHAR(150) NOT NULL UNIQUE,
-                profile_photo MEDIUMTEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
@@ -99,7 +98,6 @@ async function initDatabase() {
                 phone VARCHAR(30),
                 address TEXT,
                 role ENUM('admin', 'staff', 'member') DEFAULT 'member',
-                profile_photo MEDIUMTEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
@@ -195,42 +193,39 @@ async function initDatabase() {
 
         await connection.query(`
             INSERT IGNORE INTO admins
-            (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?, ?)
+            (username, password, full_name, email)
+            VALUES (?, ?, ?, ?)
         `, [
             'admin',
             hash,
             'System Administrator',
-            'admin@bakalgym.com',
-            'bakal_gym'
+            'admin@bakalgym.com'
         ]);
 
         const hash2 = await bcrypt.hash('kent123', 10);
 
         await connection.query(`
             INSERT IGNORE INTO admins
-            (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?, ?)
+            (username, password, full_name, email)
+            VALUES (?, ?, ?, ?)
         `, [
             'kent',
             hash2,
             'Kent Dominic Villafuerte',
-            'kent@bakalgym.com',
-            'kent_dominic_villafuerte'
+            'kent@bakalgym.com'
         ]);
 
         const hash3 = await bcrypt.hash('ryque123', 10);
 
         await connection.query(`
             INSERT IGNORE INTO admins
-            (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?, ?)
+            (username, password, full_name, email)
+            VALUES (?, ?, ?, ?)
         `, [
             'ryque',
             hash3,
             'Ryque Valen Doromal',
-            'ryque@bakalgym.com',
-            'ryque_valen_doromal'
+            'ryque@bakalgym.com'
         ]);
 
         console.log('Database initialized successfully');
