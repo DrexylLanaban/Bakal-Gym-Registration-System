@@ -1,12 +1,12 @@
 -- ========================================
--- Bakal Gym Database Cleanup Script
+-- Simple Bakal Gym Database Cleanup Script
 -- ========================================
--- This script will clean and reinitialize the Railway database
+-- This script safely drops only existing tables
 
--- Disable foreign key checks to allow dropping in any order
+-- Disable foreign key checks
 SET FOREIGN_KEY_CHECKS = 0;
 
--- Drop all existing tables
+-- Drop tables that might exist
 DROP TABLE IF EXISTS workout_schedules;
 DROP TABLE IF EXISTS attendance;
 DROP TABLE IF EXISTS payments;

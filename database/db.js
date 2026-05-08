@@ -128,27 +128,27 @@ async function initDatabase() {
             )
         `);
 
-        const [adminRows] = await connection.query(`SELECT id FROM admins LIMIT 1`);
-        if (adminRows.length === 0) {
-            const bcrypt = require('bcryptjs');
-            const hash = await bcrypt.hash('admin123', 10);
-            await connection.query(`
-                INSERT INTO admins (username, password, full_name, email, profile_photo)
-                VALUES (?, ?, ?, ?, ?)
-            `, ['admin', hash, 'System Administrator', 'admin@bakalgym.com', 'bakal_gym']);
+        const bcrypt = require('bcryptjs');
+        const hash = await bcrypt.hash('admin123', 10);
+        await connection.query(`
+            INSERT INTO admins (username, password, full_name, email, profile_photo)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE (username = VALUES(username), password = VALUES(password), full_name = VALUES(full_name), email = VALUES(email), profile_photo = VALUES(profile_photo))
+        `, ['admin', hash, 'System Administrator', 'admin@bakalgym.com', 'bakal_gym']);
 
-            const hash2 = await bcrypt.hash('kent123', 10);
-            await connection.query(`
-                INSERT INTO admins (username, password, full_name, email, profile_photo)
-                VALUES (?, ?, ?, ?, ?)
-            `, ['kent', hash2, 'Kent Dominic Villafuerte', 'kent@bakalgym.com', 'kent_dominic_villafuerte']);
+        const hash2 = await bcrypt.hash('kent123', 10);
+        await connection.query(`
+            INSERT INTO admins (username, password, full_name, email, profile_photo)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE (username = VALUES(username), password = VALUES(password), full_name = VALUES(full_name), email = VALUES(email), profile_photo = VALUES(profile_photo))
+        `, ['kent', hash2, 'Kent Dominic Villafuerte', 'kent@bakalgym.com', 'kent_dominic_villafuerte']);
 
-            const hash3 = await bcrypt.hash('ryque123', 10);
-            await connection.query(`
-                INSERT INTO admins (username, password, full_name, email, profile_photo)
-                VALUES (?, ?, ?, ?, ?)
-            `, ['ryque', hash3, 'Ryque Valen Doromal', 'ryque@bakalgym.com', 'ryque_valen_doromal']);
-        }
+        const hash3 = await bcrypt.hash('ryque123', 10);
+        await connection.query(`
+            INSERT INTO admins (username, password, full_name, email, profile_photo)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE (username = VALUES(username), password = VALUES(password), full_name = VALUES(full_name), email = VALUES(email), profile_photo = VALUES(profile_photo))
+        `, ['ryque', hash3, 'Ryque Valen Doromal', 'ryque@bakalgym.com', 'ryque_valen_doromal']);
 
         console.log('Database initialized successfully');
     } catch (err) {
