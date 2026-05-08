@@ -45,21 +45,39 @@ router.get('/payments/total', verifyToken, requireAdmin, async (req, res) => {
 
 router.post('/payments/create', verifyToken, async (req, res) => {
     try {
-        const { plan_name, amount } = req.body;
+
+        let {
+            plan_name = '1-Minute Trial',
+            amount = 0
+        } = req.body;
+
         const user_id = req.user.id;
 
-        if (!plan_name || !amount) {
-            return res.status(400).json({ success: false, message: 'Plan name and amount required' });
-        }
+        // convert amount safely
+        amount = parseFloat(amount) || 0;
 
         let durationDays;
+
         switch (plan_name) {
-            case 'Trial': durationDays = 1; break;
-            case '1-Minute Trial': durationDays = 1/1440; break;  // 1 minute = 1/1440 days
-            case 'Monthly': durationDays = 30; break;
-            case 'Annual': durationDays = 365; break;
+            case 'Trial':
+                durationDays = 1;
+                break;
+
+            case '1-Minute Trial':
+                durationDays = 1 / 1440;
+                break;
+
+            case 'Monthly':
+                durationDays = 30;
+                break;
+
+            case 'Annual':
+                durationDays = 365;
+                break;
+
             default:
-                return res.status(400).json({ success: false, message: 'Invalid plan name' });
+                durationDays = 1 / 1440;
+                plan_name = '1-Minute Trial';
         }
 
         const receipt_number = generateReceiptNumber();

@@ -17,6 +17,7 @@ function parseDbUrl(url) {
 }
 
 let dbConfig;
+
 if (process.env.DATABASE_URL) {
     dbConfig = parseDbUrl(process.env.DATABASE_URL);
 } else {
@@ -34,15 +35,19 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+    ssl: process.env.DATABASE_URL
+        ? { rejectUnauthorized: false }
+        : false
 });
 
 async function initDatabase() {
     let connection;
+
     try {
         connection = await pool.getConnection();
         console.log('Database connected successfully');
 
+        // ADMINS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS admins (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -56,6 +61,7 @@ async function initDatabase() {
             )
         `);
 
+        // USERS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -73,6 +79,7 @@ async function initDatabase() {
             )
         `);
 
+        // MEMBERS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS members (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -94,21 +101,23 @@ async function initDatabase() {
             )
         `);
 
+        // MEMBERSHIPS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS memberships (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 member_id INT NOT NULL,
-                plan_name VARCHAR(100) NOT NULL,
+                plan_name VARCHAR(100) NULL,
                 duration_months INT NOT NULL,
                 start_date DATETIME NOT NULL,
                 end_date DATETIME NOT NULL,
                 status ENUM('active', 'expired', 'pending') DEFAULT 'active',
-                price DECIMAL(10,2) NOT NULL,
+                price DECIMAL(10,2) NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
             )
         `);
 
+        // PAYMENTS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS payments (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -126,6 +135,7 @@ async function initDatabase() {
             )
         `);
 
+        // ATTENDANCE TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS attendance (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -140,6 +150,7 @@ async function initDatabase() {
             )
         `);
 
+        // TRAINERS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS trainers (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -153,12 +164,21 @@ async function initDatabase() {
             )
         `);
 
+        // WORKOUT SCHEDULES TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS workout_schedules (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 member_id INT NOT NULL,
                 trainer_id INT NOT NULL,
-                day_of_week ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') NOT NULL,
+                day_of_week ENUM(
+                    'Monday',
+                    'Tuesday',
+                    'Wednesday',
+                    'Thursday',
+                    'Friday',
+                    'Saturday',
+                    'Sunday'
+                ) NOT NULL,
                 exercise_name VARCHAR(255) NOT NULL,
                 sets INT DEFAULT 3,
                 reps INT DEFAULT 10,
@@ -169,32 +189,70 @@ async function initDatabase() {
             )
         `);
 
-        // Insert default admin accounts using REPLACE INTO to handle duplicates
-        const bcrypt = require('bcryptjs');
-        const hash = await bcrypt.hash('admin123', 10);
+        // FIX EXISTING MEMBERSHIPS TABLE
         await connection.query(`
-            REPLACE INTO admins (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?)
-        `, ['admin', hash, 'System Administrator', 'admin@bakalgym.com', 'bakal_gym']);
+            ALTER TABLE memberships
+            MODIFY plan_name VARCHAR(100) NULL,
+            MODIFY price DECIMAL(10,2) NULL
+        `);
+
+        // DEFAULT ADMINS
+        const bcrypt = require('bcryptjs');
+
+        const hash = await bcrypt.hash('admin123', 10);
+
+        await connection.query(`
+            INSERT IGNORE INTO admins
+            (username, password, full_name, email, profile_photo)
+            VALUES (?, ?, ?, ?, ?)
+        `, [
+            'admin',
+            hash,
+            'System Administrator',
+            'admin@bakalgym.com',
+            'bakal_gym'
+        ]);
 
         const hash2 = await bcrypt.hash('kent123', 10);
+
         await connection.query(`
-            REPLACE INTO admins (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?)
-        `, ['kent', hash2, 'Kent Dominic Villafuerte', 'kent@bakalgym.com', 'kent_dominic_villafuerte']);
+            REPLACE INTO admins
+            (username, password, full_name, email, profile_photo)
+            VALUES (?, ?, ?, ?, ?)
+        `, [
+            'kent',
+            hash2,
+            'Kent Dominic Villafuerte',
+            'kent@bakalgym.com',
+            'kent_dominic_villafuerte'
+        ]);
 
         const hash3 = await bcrypt.hash('ryque123', 10);
+
         await connection.query(`
-            REPLACE INTO admins (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?)
-        `, ['ryque', hash3, 'Ryque Valen Doromal', 'ryque@bakalgym.com', 'ryque_valen_doromal']);
+            REPLACE INTO admins
+            (username, password, full_name, email, profile_photo)
+            VALUES (?, ?, ?, ?, ?)
+        `, [
+            'ryque',
+            hash3,
+            'Ryque Valen Doromal',
+            'ryque@bakalgym.com',
+            'ryque_valen_doromal'
+        ]);
 
         console.log('Database initialized successfully');
+
     } catch (err) {
         console.error('Database init error:', err);
     } finally {
-        if (connection) connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 }
 
-module.exports = { pool, initDatabase };
+module.exports = {
+    pool,
+    initDatabase
+};
