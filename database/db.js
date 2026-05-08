@@ -6,13 +6,32 @@ const pool = mysql.createPool({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     waitForConnections: true,
-    connectionLimit: 10
+    connectionLimit: 10,
+    queueLimit: 0,
+    acquireTimeout: 60000,
+    timeout: 60000,
+    reconnect: true,
+    idleTimeout: 300000,
+    maxIdle: 5
 });
 
 async function initDatabase() {
+    let retries = 3;
+    let connection;
+    
+    while (retries > 0) {
+        try {
+            connection = await pool.getConnection();
+            break;
+        } catch (error) {
+            console.log(`Database connection attempt ${4 - retries} failed, retrying...`);
+            retries--;
+            if (retries === 0) throw error;
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }
+    
     try {
-        const connection = await pool.getConnection();
-        
         // Check if tables exist
         const [tables] = await connection.query("SHOW TABLES");
         const tableNames = tables.map(t => Object.values(t)[0]);
