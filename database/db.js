@@ -207,6 +207,21 @@ async function initDatabase() {
             console.log("Column rename skipped:", err.message);
         }
         
+        // RENAME member_id TO user_id IN PAYMENTS TABLE IF EXISTS
+        try {
+            const [rows] = await connection.query(
+                "SHOW COLUMNS FROM payments LIKE 'member_id'"
+            );
+            if (rows.length > 0) {
+                await connection.query(
+                    "ALTER TABLE payments CHANGE COLUMN member_id user_id INT NOT NULL"
+                );
+                console.log("Renamed member_id to user_id in payments table");
+            }
+        } catch (err) {
+            console.log("Payments column rename skipped:", err.message);
+        }
+        
         // Safe column modifications
         await safeModifyColumn(connection, 'memberships', 'plan_name', "ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial'");
         await safeModifyColumn(connection, 'memberships', 'status', "ENUM('Pending','Active','Expired') DEFAULT 'Pending'");
