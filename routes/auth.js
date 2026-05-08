@@ -10,6 +10,8 @@ const router = express.Router();
 router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log('Login attempt for username:', username);
+        
         if (!username || !password) {
             return res.status(400).json({ success: false, message: 'Username and password required' });
         }
@@ -25,14 +27,19 @@ router.post('/login', async (req, res) => {
         }
 
         if (!user) {
+            console.log('User not found:', username);
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
+
+        console.log('User found:', { id: user.id, role, username: user.username });
 
         if (role === 'user' && user.status === 'inactive') {
             return res.status(403).json({ success: false, message: 'Account is inactive' });
         }
 
         const valid = await bcrypt.compare(password, user.password);
+        console.log('Password valid:', valid);
+        
         if (!valid) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
@@ -52,11 +59,11 @@ router.post('/login', async (req, res) => {
                 full_name: user.full_name,
                 email: user.email,
                 role,
-                profile_photo: user.profile_photo || null
+                ...(role === 'admin' ? { profile_photo: user.profile_photo } : {})
             }
         });
     } catch (err) {
-        console.error(err);
+        console.error('Login error:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
