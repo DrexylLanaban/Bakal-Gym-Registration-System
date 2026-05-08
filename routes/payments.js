@@ -24,8 +24,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
         // convert amount safely
         amount = parseFloat(amount) || 0;
 
-        let durationMinutes = null;
-        let durationDays = null;
+        let durationDays;
         let endDateExpression;
         
         switch (plan_name) {
@@ -35,7 +34,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
                 break;
 
             case '1-Minute Trial':
-                durationMinutes = 1;
+                durationDays = 0; // 0 days for 1-minute trial
                 endDateExpression = `DATE_ADD(NOW(), INTERVAL 1 MINUTE)`;
                 break;
 
@@ -50,7 +49,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
                 break;
 
             default:
-                durationMinutes = 1;
+                durationDays = 0; // 0 days for 1-minute trial
                 endDateExpression = `DATE_ADD(NOW(), INTERVAL 1 MINUTE)`;
                 plan_name = '1-Minute Trial';
         }
@@ -60,7 +59,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
         try {
             await connection.beginTransaction();
 
-            // Update existing memberships to Expired status
+            // Expire existing memberships
             await connection.query(
                 `UPDATE memberships SET status = 'Expired' WHERE user_id = ? AND status != 'Expired'`,
                 [user_id]
@@ -77,8 +76,8 @@ router.post('/payments/create', verifyToken, async (req, res) => {
                 `INSERT INTO memberships (user_id, plan_name, duration_days, start_date, end_date, status)
                  VALUES (?, ?, ?, NOW(), ${endDateExpression}, 'Active')`,
                 plan_name === '1-Minute Trial' 
-                    ? [user_id, plan_name, 0]  // 0 days for 1-minute trial
-                    : [user_id, plan_name, durationDays]
+                    ? [user_id, plan_name, durationDays]
+                    : [user_id, plan_name, durationDays, durationDays]
             );
 
             // Link payment to membership
