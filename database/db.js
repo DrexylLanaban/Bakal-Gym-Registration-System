@@ -42,12 +42,40 @@ const pool = mysql.createPool({
 
 async function initDatabase() {
     let connection;
-
     try {
         connection = await pool.getConnection();
         console.log('Database connected successfully');
 
-        // ADMINS TABLE
+        // Check if tables need to be reset (member_id columns exist)
+        const [membershipColumns] = await connection.query(
+            "SHOW COLUMNS FROM memberships LIKE 'member_id'"
+        );
+        const [paymentColumns] = await connection.query(
+            "SHOW COLUMNS FROM payments LIKE 'member_id'"
+        );
+
+        // If member_id columns exist, reset the database
+        if (membershipColumns.length > 0 || paymentColumns.length > 0) {
+            console.log('Detected old schema with member_id columns, resetting database...');
+            
+            // Disable foreign key checks
+            await connection.query("SET FOREIGN_KEY_CHECKS = 0");
+            
+            // Drop all tables
+            await connection.query("DROP TABLE IF EXISTS attendance");
+            await connection.query("DROP TABLE IF EXISTS workout_schedules");
+            await connection.query("DROP TABLE IF EXISTS payments");
+            await connection.query("DROP TABLE IF EXISTS memberships");
+            await connection.query("DROP TABLE IF EXISTS members");
+            await connection.query("DROP TABLE IF EXISTS trainers");
+            await connection.query("DROP TABLE IF EXISTS users");
+            await connection.query("DROP TABLE IF EXISTS admins");
+            
+            // Re-enable foreign key checks
+            await connection.query("SET FOREIGN_KEY_CHECKS = 1");
+        }
+
+        // Create tables with correct schema (user_id throughout)
         await connection.query(`
             CREATE TABLE IF NOT EXISTS admins (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -61,7 +89,6 @@ async function initDatabase() {
             )
         `);
 
-        // USERS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -73,41 +100,28 @@ async function initDatabase() {
                 address TEXT,
                 role ENUM('admin', 'staff', 'member') DEFAULT 'member',
                 profile_photo MEDIUMTEXT,
-                status ENUM('active', 'inactive') DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
 
-        // MEMBERS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS members (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
-                full_name VARCHAR(150) NOT NULL,
-                phone VARCHAR(30),
-                email VARCHAR(150) NOT NULL UNIQUE,
-                current_status VARCHAR(50) DEFAULT 'active',
-                profile_image MEDIUMTEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                wallet_balance DECIMAL(10,2) DEFAULT 0.00,
-                balance DECIMAL(10,2) DEFAULT 0.00,
-                expiration_date DATETIME,
-                start_date DATETIME,
+                membership_status VARCHAR(50) DEFAULT 'inactive',
                 current_plan VARCHAR(100),
                 display_status VARCHAR(50) DEFAULT 'active',
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
 
-        // MEMBERSHIPS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS memberships (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
                 plan_name ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial',
-                duration_days INT NOT NULL,
+                duration_days INT NOT NULL DEFAULT 0,
                 start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 end_date TIMESTAMP NOT NULL,
                 status ENUM('Pending','Active','Expired') DEFAULT 'Pending',
@@ -117,7 +131,6 @@ async function initDatabase() {
             )
         `);
 
-        // PAYMENTS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS payments (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -133,100 +146,49 @@ async function initDatabase() {
             )
         `);
 
-        // ATTENDANCE TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS attendance (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
                 checkin_date DATE NOT NULL,
                 checkin_time TIME NOT NULL,
-                checkout TIME,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                UNIQUE KEY unique_daily_checkin (user_id, checkin_date),
-                INDEX idx_checkin_date (checkin_date)
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
 
-        // TRAINERS TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS trainers (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
                 full_name VARCHAR(150) NOT NULL,
-                phone VARCHAR(30),
                 email VARCHAR(150) NOT NULL UNIQUE,
-                specialization VARCHAR(150),
-                profile_photo MEDIUMTEXT,
+                phone VARCHAR(30),
+                specialization VARCHAR(100),
+                experience_years INT DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status ENUM('active', 'inactive') DEFAULT 'active'
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
 
-        // WORKOUT SCHEDULES TABLE
         await connection.query(`
             CREATE TABLE IF NOT EXISTS workout_schedules (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                member_id INT NOT NULL,
+                user_id INT NOT NULL,
                 trainer_id INT NOT NULL,
-                day_of_week ENUM(
-                    'Monday',
-                    'Tuesday',
-                    'Wednesday',
-                    'Thursday',
-                    'Friday',
-                    'Saturday',
-                    'Sunday'
-                ) NOT NULL,
+                day_of_week ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') NOT NULL,
                 exercise_name VARCHAR(255) NOT NULL,
                 sets INT DEFAULT 3,
                 reps INT DEFAULT 10,
                 weight VARCHAR(50),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (trainer_id) REFERENCES trainers(id) ON DELETE CASCADE
             )
         `);
 
-        // SAFE COLUMN MIGRATIONS - Check before adding columns
-        await safeAddColumn(connection, 'memberships', 'duration_days', 'INT DEFAULT 0');
-        await safeAddColumn(connection, 'memberships', 'duration_minutes', 'INT NULL');
-        await safeAddColumn(connection, 'memberships', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
-        
-        // RENAME member_id TO user_id IF EXISTS
-        try {
-            const [rows] = await connection.query(
-                "SHOW COLUMNS FROM memberships LIKE 'member_id'"
-            );
-            if (rows.length > 0) {
-                await connection.query(
-                    "ALTER TABLE memberships CHANGE COLUMN member_id user_id INT NOT NULL"
-                );
-                console.log("Renamed member_id to user_id in memberships table");
-            }
-        } catch (err) {
-            console.log("Column rename skipped:", err.message);
-        }
-        
-        // RENAME member_id TO user_id IN PAYMENTS TABLE IF EXISTS
-        try {
-            const [rows] = await connection.query(
-                "SHOW COLUMNS FROM payments LIKE 'member_id'"
-            );
-            if (rows.length > 0) {
-                await connection.query(
-                    "ALTER TABLE payments CHANGE COLUMN member_id user_id INT NOT NULL"
-                );
-                console.log("Renamed member_id to user_id in payments table");
-            }
-        } catch (err) {
-            console.log("Payments column rename skipped:", err.message);
-        }
-        
-        // Safe column modifications
-        await safeModifyColumn(connection, 'memberships', 'plan_name', "ENUM('Trial','1-Minute Trial','Monthly','Annual') DEFAULT 'Trial'");
-        await safeModifyColumn(connection, 'memberships', 'status', "ENUM('Pending','Active','Expired') DEFAULT 'Pending'");
-
-        // DEFAULT ADMINS
+        // Insert default admin accounts
         const bcrypt = require('bcryptjs');
 
         const hash = await bcrypt.hash('admin123', 10);
@@ -246,7 +208,7 @@ async function initDatabase() {
         const hash2 = await bcrypt.hash('kent123', 10);
 
         await connection.query(`
-            REPLACE INTO admins
+            INSERT IGNORE INTO admins
             (username, password, full_name, email, profile_photo)
             VALUES (?, ?, ?, ?, ?)
         `, [
@@ -260,7 +222,7 @@ async function initDatabase() {
         const hash3 = await bcrypt.hash('ryque123', 10);
 
         await connection.query(`
-            REPLACE INTO admins
+            INSERT IGNORE INTO admins
             (username, password, full_name, email, profile_photo)
             VALUES (?, ?, ?, ?, ?)
         `, [
