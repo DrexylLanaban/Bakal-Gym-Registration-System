@@ -20,7 +20,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Username and password required' });
         }
 
-        let [rows] = await pool.query(`SELECT id, username, password, full_name, email, profile_photo, 'admin' as role FROM admins WHERE username = ?`, [username]);
+        let [rows] = await pool.query(`SELECT id, username, password, full_name, email, 'admin' as role FROM admins WHERE username = ?`, [username]);
         let user = rows[0];
         let role = 'admin';
 
@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
                 full_name: user.full_name,
                 email: user.email,
                 role,
-                ...(role === 'admin' ? { profile_photo: user.profile_photo } : {})
+                ...(role === 'admin' ? {} : {})
             }
         });
     } catch (err) {
@@ -128,7 +128,7 @@ router.get('/me', verifyToken, async (req, res) => {
     try {
         let rows;
         if (req.user.role === 'admin') {
-            [rows] = await pool.query(`SELECT id, username, full_name, email, profile_photo FROM admins WHERE id = ?`, [req.user.id]);
+            [rows] = await pool.query(`SELECT id, username, full_name, email FROM admins WHERE id = ?`, [req.user.id]);
         } else {
             [rows] = await pool.query(`SELECT id, username, full_name, email, phone, address, status FROM users WHERE id = ?`, [req.user.id]);
         }

@@ -35,7 +35,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
 
     case 'Trial':
         duration_days = 0;
-        endDateQuery = 'DATE_ADD(NOW(), INTERVAL 1 DAY)';
+        endDateQuery = 'DATE_ADD(NOW(), INTERVAL 1 MINUTE)';
         break;
 
     case '1-Minute Trial':
