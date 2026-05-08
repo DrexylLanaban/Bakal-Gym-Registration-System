@@ -239,8 +239,8 @@ async function initDatabase() {
     } finally {
         if (connection) {
             connection.release();
-        }
     }
+}
 }
 
 // Safe column addition helper
