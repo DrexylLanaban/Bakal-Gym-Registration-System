@@ -55,7 +55,8 @@ router.get('/attendance/user/:userId', verifyToken, async (req, res) => {
 
         res.json({ success: true, attendance: rows });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error('User attendance query error:', err);
+        res.status(500).json({ success: false, message: 'Server error', error: err.message });
     }
 });
 
@@ -71,7 +72,8 @@ router.get('/attendance/all', verifyToken, requireAdmin, async (req, res) => {
 
         res.json({ success: true, attendance: rows });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error('Attendance all query error:', err);
+        res.status(500).json({ success: false, message: 'Server error', error: err.message });
     }
 });
 

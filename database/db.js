@@ -154,6 +154,18 @@ async function initDatabase() {
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
+        
+        // Verify attendance table was created
+        try {
+            const [attendanceCheck] = await connection.query("SHOW TABLES LIKE 'attendance'");
+            if (attendanceCheck.length > 0) {
+                console.log('Attendance table verified');
+            } else {
+                console.log('Warning: Attendance table not found');
+            }
+        } catch (err) {
+            console.log('Attendance table verification skipped:', err.message);
+        }
 
         await connection.query(`
             CREATE TABLE IF NOT EXISTS trainers (
