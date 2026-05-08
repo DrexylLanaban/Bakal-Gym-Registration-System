@@ -56,7 +56,8 @@ router.post('/payments/create', verifyToken, async (req, res) => {
         // convert amount safely
         amount = parseFloat(amount) || 0;
 
-        let durationDays;
+        let durationMinutes = null;
+        let durationDays = null;
         let endDateExpression;
         switch (plan_name) {
             case 'Trial':
@@ -65,7 +66,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
                 break;
 
             case '1-Minute Trial':
-                durationDays = 1;
+                durationMinutes = 1;
                 endDateExpression = `DATE_ADD(NOW(), INTERVAL 1 MINUTE)`;
                 break;
 
@@ -80,7 +81,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
                 break;
 
             default:
-                durationDays = 1;
+                durationMinutes = 1;
                 endDateExpression = `DATE_ADD(NOW(), INTERVAL 1 MINUTE)`;
                 plan_name = '1-Minute Trial';
         }
@@ -101,9 +102,11 @@ router.post('/payments/create', verifyToken, async (req, res) => {
             );
 
             const [membershipResult] = await connection.query(
-                `INSERT INTO memberships (user_id, plan_name, duration_months, end_date, status)
-                 VALUES (?, ?, ?, ${endDateExpression}, 'active')`,
-                plan_name === '1-Minute Trial' ? [user_id, plan_name, durationDays] : [user_id, plan_name, durationDays, durationDays]
+                `INSERT INTO memberships (user_id, plan_name, duration_months, duration_minutes, end_date, status)
+                 VALUES (?, ?, ?, ?, ${endDateExpression}, 'active')`,
+                plan_name === '1-Minute Trial' 
+                    ? [user_id, plan_name, 0, durationMinutes]
+                    : [user_id, plan_name, durationDays, null]
             );
 
             await connection.query(

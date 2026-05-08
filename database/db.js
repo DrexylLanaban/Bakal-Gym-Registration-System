@@ -108,6 +108,7 @@ async function initDatabase() {
                 user_id INT NOT NULL,
                 plan_name VARCHAR(100) NULL,
                 duration_months INT NOT NULL,
+                duration_minutes INT NULL,
                 start_date DATETIME NOT NULL,
                 end_date DATETIME NOT NULL,
                 status ENUM('active', 'expired', 'pending') DEFAULT 'active',
@@ -192,6 +193,12 @@ async function initDatabase() {
             ALTER TABLE memberships
             MODIFY plan_name VARCHAR(100) NULL,
             MODIFY price DECIMAL(10,2) NULL
+        `);
+        
+        // Add duration_minutes column if it doesn't exist
+        await connection.query(`
+            ALTER TABLE memberships
+            ADD COLUMN IF NOT EXISTS duration_minutes INT NULL
         `);
         
         // Update foreign key if needed
