@@ -2,6 +2,9 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../database/db');
 require('dotenv').config();
 
+// Ensure JWT_SECRET is always available
+const JWT_SECRET = process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026';
+
 function verifyToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -11,8 +14,7 @@ function verifyToken(req, res, next) {
     }
 
     try {
-        const jwtSecret = process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026';
-        const decoded = jwt.verify(token, jwtSecret);
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
         next();
     } catch (err) {

@@ -5,6 +5,10 @@ const { pool } = require('../database/db');
 const { verifyToken } = require('../middleware/auth');
 require('dotenv').config();
 
+// Ensure JWT_SECRET is always available
+const JWT_SECRET = process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026';
+console.log('JWT_SECRET initialized:', !!JWT_SECRET);
+
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
@@ -37,6 +41,7 @@ router.post('/login', async (req, res) => {
             return res.status(403).json({ success: false, message: 'Account is inactive' });
         }
 
+        console.log('Comparing password with hash:', user.password.substring(0, 20) + '...');
         const valid = await bcrypt.compare(password, user.password);
         console.log('Password valid:', valid);
         
@@ -44,14 +49,12 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
-        const jwtSecret = process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026';
-        console.log('JWT Secret available:', !!jwtSecret);
-        
         const token = jwt.sign(
             { id: user.id, username: user.username, role, full_name: user.full_name },
-            jwtSecret,
+            JWT_SECRET,
             { expiresIn: '7d' }
         );
+        console.log('JWT token generated successfully');
 
         res.json({
             success: true,
