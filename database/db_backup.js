@@ -131,8 +131,8 @@ async function initDatabase() {
         const bcrypt = require('bcryptjs');
         const hash = await bcrypt.hash('admin123', 10);
         await connection.query(`
-            INSERT INTO admins (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO admins (username, password, full_name, email)
+            VALUES (?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
                 username = ?, 
                 password = ?, 
@@ -143,8 +143,8 @@ async function initDatabase() {
 
         const hash2 = await bcrypt.hash('kent123', 10);
         await connection.query(`
-            INSERT INTO admins (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO admins (username, password, full_name, email)
+            VALUES (?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
                 username = ?, 
                 password = ?, 
@@ -155,8 +155,8 @@ async function initDatabase() {
 
         const hash3 = await bcrypt.hash('ryque123', 10);
         await connection.query(`
-            INSERT INTO admins (username, password, full_name, email, profile_photo)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO admins (username, password, full_name, email)
+            VALUES (?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
                 username = ?, 
                 password = ?, 
