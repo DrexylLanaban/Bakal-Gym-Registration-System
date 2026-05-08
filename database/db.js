@@ -43,10 +43,13 @@ const pool = mysql.createPool({
 });
 
 async function initDatabase() {
+    console.log('Initializing database connection...');
     const connection = await pool.getConnection();
+    console.log('Database connected successfully');
     try {
         await connection.query(`CREATE DATABASE IF NOT EXISTS bakal_gym`);
         await connection.query(`USE bakal_gym`);
+        console.log('Using bakal_gym database');
 
         await connection.query(`
             CREATE TABLE IF NOT EXISTS admins (
