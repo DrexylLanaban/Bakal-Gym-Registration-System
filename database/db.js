@@ -105,7 +105,7 @@ async function initDatabase() {
         await connection.query(`
             CREATE TABLE IF NOT EXISTS memberships (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                member_id INT NOT NULL,
+                user_id INT NOT NULL,
                 plan_name VARCHAR(100) NULL,
                 duration_months INT NOT NULL,
                 start_date DATETIME NOT NULL,
@@ -113,7 +113,7 @@ async function initDatabase() {
                 status ENUM('active', 'expired', 'pending') DEFAULT 'active',
                 price DECIMAL(10,2) NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
 
@@ -121,17 +121,15 @@ async function initDatabase() {
         await connection.query(`
             CREATE TABLE IF NOT EXISTS payments (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                member_id INT NOT NULL,
+                user_id INT NOT NULL,
                 amount DECIMAL(10,2) NOT NULL,
                 payment_method VARCHAR(50) DEFAULT 'Wallet',
                 status ENUM('paid', 'pending', 'failed') DEFAULT 'paid',
-                description VARCHAR(255),
-                payment_date DATETIME NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                plan_id INT,
-                receipt_number VARCHAR(50) NOT NULL UNIQUE,
-                FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
-                FOREIGN KEY (plan_id) REFERENCES memberships(id) ON DELETE SET NULL
+                payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                membership_id INT,
+                receipt_number VARCHAR(100) UNIQUE,
+                plan_name VARCHAR(100),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
 
@@ -189,11 +187,32 @@ async function initDatabase() {
             )
         `);
 
-        // FIX EXISTING MEMBERSHIPS TABLE
+        // FIX EXISTING TABLES TO USE user_id CONSISTENTLY
         await connection.query(`
             ALTER TABLE memberships
             MODIFY plan_name VARCHAR(100) NULL,
             MODIFY price DECIMAL(10,2) NULL
+        `);
+        
+        // Update foreign key if needed
+        await connection.query(`
+            ALTER TABLE memberships
+            DROP FOREIGN KEY IF EXISTS memberships_ibfk_1
+        `);
+        
+        await connection.query(`
+            ALTER TABLE memberships
+            ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        `);
+        
+        await connection.query(`
+            ALTER TABLE payments
+            DROP FOREIGN KEY IF EXISTS payments_ibfk_1
+        `);
+        
+        await connection.query(`
+            ALTER TABLE payments
+            ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         `);
 
         // DEFAULT ADMINS

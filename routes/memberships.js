@@ -15,7 +15,7 @@ router.get('/membership/status/:userId', verifyToken, async (req, res) => {
             SELECT m.id, m.plan_name, m.duration_months, m.start_date, m.end_date, m.status,
                    TIMESTAMPDIFF(SECOND, NOW(), m.end_date) as seconds_remaining
             FROM memberships m
-            WHERE m.member_id = ? AND m.status != 'expired'
+            WHERE m.user_id = ? AND m.status != 'expired'
             ORDER BY m.id DESC
             LIMIT 1
         `, [userId]);
@@ -26,8 +26,8 @@ router.get('/membership/status/:userId', verifyToken, async (req, res) => {
 
         const membership = rows[0];
         if (membership.seconds_remaining <= 0) {
-            await pool.query(`UPDATE memberships SET status = 'Expired' WHERE id = ?`, [membership.id]);
-            membership.status = 'Expired';
+            await pool.query(`UPDATE memberships SET status = 'expired' WHERE id = ?`, [membership.id]);
+            membership.status = 'expired';
             membership.seconds_remaining = 0;
         }
 
@@ -46,7 +46,7 @@ router.get('/membership/history/:userId', verifyToken, async (req, res) => {
         }
 
         const [rows] = await pool.query(`
-            SELECT id, plan_name, duration_days, start_date, end_date, status, created_at
+            SELECT id, plan_name, duration_months, start_date, end_date, status, created_at
             FROM memberships
             WHERE user_id = ?
             ORDER BY created_at DESC

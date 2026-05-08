@@ -1,17 +1,16 @@
 -- Create a 1-minute trial membership for testing
 -- This will create a membership that expires in 1 minute
 
-INSERT INTO memberships (member_id, plan_name, duration_months, start_date, end_date, status, price)
+INSERT INTO memberships (user_id, plan_name, duration_months, start_date, end_date, status, price)
 SELECT 
-    m.id as member_id,
+    u.id as user_id,
     '1-Minute Trial' as plan_name,
-    (1/30) as duration_months,  -- 1 day = 1/30 month
+    1 as duration_months,  -- 1 minute trial
     NOW() as start_date,
     DATE_ADD(NOW(), INTERVAL 1 MINUTE) as end_date,
-    'Active' as status,
+    'active' as status,
     0.00 as price
-FROM members m 
-JOIN users u ON m.user_id = u.id
+FROM users u
 WHERE u.username = 'admin'  -- Replace with actual username to test
 LIMIT 1;
 
