@@ -3,7 +3,6 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-const { initDatabase } = require('./database/db');
 const authRoutes = require('./routes/auth');
 const memberRoutes = require('./routes/members');
 const paymentRoutes = require('./routes/payments');
@@ -41,8 +40,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
-async function startServer() {
-    await initDatabase();
+function startServer() {
     app.listen(PORT, () => {
         console.log(`Bakal Gym server running on port ${PORT}`);
     });
