@@ -34,7 +34,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
         switch ((plan_name || '').trim()) {
 
     case 'Trial':
-        duration_days = 1;
+        duration_days = 0;
         endDateQuery = 'DATE_ADD(NOW(), INTERVAL 1 DAY)';
         break;
 
