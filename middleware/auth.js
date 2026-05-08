@@ -11,7 +11,7 @@ function verifyToken(req, res, next) {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026');
         req.user = decoded;
         next();
     } catch (err) {

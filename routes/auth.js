@@ -46,7 +46,7 @@ router.post('/login', async (req, res) => {
 
         const token = jwt.sign(
             { id: user.id, username: user.username, role, full_name: user.full_name },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET || 'bakal-gym-jwt-secret-2026',
             { expiresIn: '7d' }
         );
 
