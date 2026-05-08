@@ -3,15 +3,15 @@
 -- ========================================
 -- This script will clean and reinitialize the Railway database
 
--- Drop all existing tables
+-- Drop all existing tables in correct order (respecting foreign key dependencies)
+DROP TABLE IF EXISTS workout_schedules;
 DROP TABLE IF EXISTS attendance;
-DROP TABLE IF EXISTS members;
-DROP TABLE IF EXISTS memberships;
 DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS memberships;
+DROP TABLE IF EXISTS members;
+DROP TABLE IF EXISTS trainers;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS admins;
-DROP TABLE IF EXISTS trainers;
-DROP TABLE IF EXISTS workout_schedules;
 
 -- ========================================
 -- Create fresh tables with correct schema
