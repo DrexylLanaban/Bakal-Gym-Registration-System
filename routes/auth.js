@@ -98,7 +98,7 @@ router.post('/register', async (req, res) => {
 
         const token = jwt.sign(
             { id: result.insertId, username, role: 'user', full_name },
-            process.env.JWT_SECRET,
+            JWT_SECRET,
             { expiresIn: '7d' }
         );
 
@@ -114,8 +114,13 @@ router.post('/register', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error('Registration error details:', {
+            message: err.message,
+            stack: err.stack,
+            name: err.name,
+            body: req.body
+        });
+        res.status(500).json({ success: false, message: 'Server error', error: err.message });
     }
 });
 
