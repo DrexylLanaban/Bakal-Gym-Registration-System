@@ -37,7 +37,6 @@ const pool = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0,
     connectTimeout: 30000,
-    acquireTimeout: 30000,
     ...(isRemote ? {
         ssl: { rejectUnauthorized: false }
     } : {})
