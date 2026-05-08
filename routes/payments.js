@@ -91,6 +91,7 @@ router.post('/payments/create', verifyToken, async (req, res) => {
 
             await connection.commit();
 
+            try {
             // Get receipt details
             const [receipt] = await pool.query(`
                 SELECT p.*, m.plan_name, m.end_date, m.status as membership_status
