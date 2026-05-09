@@ -80,38 +80,15 @@ router.get('/attendance/all', verifyToken, requireAdmin, async (req, res) => {
 router.get('/attendance/today', verifyToken, requireAdmin, async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
-        console.log('Attendance today query for date:', today);
+        console.log('Counting attendance for today:', today);
         
-        // Get all attendance records to see what we have
-        const [allRecords] = await pool.query(
-            `SELECT * FROM attendance ORDER BY checkin_date DESC LIMIT 5`
-        );
-        console.log('All attendance records:', allRecords);
-        
-        // Check specific today's records
-        const [todayRecords] = await pool.query(
-            `SELECT * FROM attendance WHERE checkin_date = ?`,
+        // Count attendance records for today's date
+        const [[count]] = await pool.query(
+            `SELECT COUNT(*) as count FROM attendance WHERE checkin_date = ?`,
             [today]
         );
-        console.log('Today records found:', todayRecords);
         
-        // Try different date formats
-        const todayObj = new Date();
-        const todayString = todayObj.toISOString().split('T')[0];
-        const todayFormatted = todayObj.getFullYear() + '-' + 
-                          String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + 
-                          String(todayObj.getDate()).padStart(2, '0');
-        
-        console.log('Date comparisons:');
-        console.log('- ISO string:', todayString);
-        console.log('- Formatted:', todayFormatted);
-        
-        const [[count]] = await pool.query(
-            `SELECT COUNT(*) as count FROM attendance WHERE checkin_date IN (?, ?)`,
-            [todayString, todayFormatted]
-        );
-        
-        console.log('Final attendance today count:', count.count);
+        console.log('Today attendance count:', count.count);
         res.json({ success: true, today_count: count.count });
     } catch (err) {
         console.error('Attendance today error:', err);
