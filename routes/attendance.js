@@ -81,9 +81,14 @@ router.get('/attendance/today', verifyToken, requireAdmin, async (req, res) => {
     try {
         console.log('Attendance today request received');
         
-        // Use CURDATE() to get current server date
+        // Get current date in Asia/Manila timezone
+        const today = new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila' });
+        console.log('Server date (Asia/Manila):', today);
+        
+        // Count attendance records for today's date
         const [[count]] = await pool.query(
-            `SELECT COUNT(*) as today_attendance FROM attendance WHERE DATE(checkin_date) = CURDATE()`
+            `SELECT COUNT(*) as today_attendance FROM attendance WHERE checkin_date = ?`,
+            [today]
         );
         
         console.log('Today attendance count:', count[0].today_attendance);
