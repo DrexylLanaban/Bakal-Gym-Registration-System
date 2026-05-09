@@ -182,29 +182,34 @@ router.get('/payments', verifyToken, async (req, res) => {
 router.get('/payments/admin', verifyToken, requireAdmin, async (req, res) => {
     try {
         console.log('Admin payments request received');
-        console.log('User role:', req.user.role);
-        console.log('User ID:', req.user.id);
+        console.log('Admin user ID:', req.user.id);
+        console.log('Admin user role:', req.user.role);
         
+        // Get all payments with user details for admin viewing
         const [payments] = await pool.query(
-            `SELECT p.*, u.full_name, u.email 
+            `SELECT p.*, u.full_name, u.email, u.phone,
+                    m.plan_name as membership_plan, m.end_date as membership_end_date
              FROM payments p 
              LEFT JOIN users u ON p.user_id = u.id 
+             LEFT JOIN memberships m ON p.membership_id = m.id 
              ORDER BY p.payment_date DESC 
              LIMIT 100`
         );
 
-        console.log('Admin payments found:', payments.length);
+        console.log('All user payments found for admin:', payments.length);
         
         res.json({
             success: true,
-            payments
+            message: 'All user receipts retrieved successfully',
+            total_payments: payments.length,
+            payments: payments
         });
 
     } catch (err) {
         console.error('Admin payments error:', err);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch payments'
+            message: 'Failed to fetch user payments'
         });
     }
 });
