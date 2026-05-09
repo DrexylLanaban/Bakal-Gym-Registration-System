@@ -82,12 +82,26 @@ router.get('/attendance/today', verifyToken, requireAdmin, async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
         console.log('Attendance today query for date:', today);
         
+        // First check what dates exist in attendance table
+        const [dates] = await pool.query(
+            `SELECT DISTINCT checkin_date FROM attendance ORDER BY checkin_date DESC LIMIT 10`
+        );
+        console.log('Available dates in attendance:', dates);
+        
         const [[count]] = await pool.query(
             `SELECT COUNT(*) as count FROM attendance WHERE DATE(checkin_date) = DATE(?)`,
             [today]
         );
 
         console.log('Attendance today count found:', count.count);
+        
+        // Also try without DATE() function
+        const [[count2]] = await pool.query(
+            `SELECT COUNT(*) as count FROM attendance WHERE checkin_date = ?`,
+            [today]
+        );
+        console.log('Attendance today count (string match):', count2.count);
+        
         res.json({ success: true, today_count: count.count });
     } catch (err) {
         console.error('Attendance today error:', err);
