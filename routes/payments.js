@@ -182,6 +182,8 @@ router.get('/payments', verifyToken, async (req, res) => {
 router.get('/payments/admin', verifyToken, requireAdmin, async (req, res) => {
     try {
         console.log('Admin payments request received');
+        console.log('User role:', req.user.role);
+        console.log('User ID:', req.user.id);
         
         const [payments] = await pool.query(
             `SELECT p.*, u.full_name, u.email 
