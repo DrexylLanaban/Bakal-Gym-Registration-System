@@ -37,8 +37,9 @@ router.get('/membership/status/:userId', verifyToken, async (req, res) => {
         
         // Auto-expire if time has run out
         if (membership.seconds_remaining <= 0) {
+            console.log('Auto-expiring membership:', membership.id, 'Plan:', membership.plan_name);
             await pool.query(
-                `UPDATE memberships SET status = 'Expired' WHERE id = ?`,
+                `UPDATE memberships SET status = 'Expired', end_date = NOW() WHERE id = ?`,
                 [membership.id]
             );
             membership.status = 'Expired';
