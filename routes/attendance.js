@@ -80,13 +80,17 @@ router.get('/attendance/all', verifyToken, requireAdmin, async (req, res) => {
 router.get('/attendance/today', verifyToken, requireAdmin, async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
+        console.log('Attendance today query for date:', today);
+        
         const [[count]] = await pool.query(
-            `SELECT COUNT(*) as count FROM attendance WHERE checkin_date = ?`,
+            `SELECT COUNT(*) as count FROM attendance WHERE DATE(checkin_date) = DATE(?)`,
             [today]
         );
 
+        console.log('Attendance today count found:', count.count);
         res.json({ success: true, today_count: count.count });
     } catch (err) {
+        console.error('Attendance today error:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
