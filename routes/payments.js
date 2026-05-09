@@ -146,6 +146,8 @@ router.post('/payments/create', verifyToken, async (req, res) => {
 */
 router.get('/payments', verifyToken, async (req, res) => {
     try {
+        console.log('User payments request for user_id:', req.user.id);
+        
         const [payments] = await pool.query(
             `
             SELECT *
@@ -156,13 +158,15 @@ router.get('/payments', verifyToken, async (req, res) => {
             [req.user.id]
         );
 
+        console.log('User payments found:', payments.length);
+        
         res.json({
             success: true,
             payments
         });
 
     } catch (err) {
-        console.error(err);
+        console.error('User payments error:', err);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch payments'
