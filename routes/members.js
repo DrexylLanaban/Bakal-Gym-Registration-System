@@ -28,7 +28,7 @@ router.get('/members/:id', verifyToken, async (req, res) => {
 
         const [rows] = await pool.query(`
             SELECT u.id, u.username, u.full_name, u.email, u.phone, u.address, u.status, u.created_at,
-                   m.id as membership_id, m.plan_name, m.duration_months, m.start_date, m.end_date, m.status as membership_status
+                   m.id as membership_id, m.plan_name, m.duration_days, m.start_date, m.end_date, m.status as membership_status
             FROM users u
             LEFT JOIN memberships m ON u.id = m.user_id AND m.status != 'expired'
             WHERE u.id = ?
