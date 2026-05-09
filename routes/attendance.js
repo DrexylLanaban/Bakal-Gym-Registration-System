@@ -79,48 +79,16 @@ router.get('/attendance/all', verifyToken, requireAdmin, async (req, res) => {
 
 router.get('/attendance/today', verifyToken, requireAdmin, async (req, res) => {
     try {
-        const today = new Date().toISOString().split('T')[0];
-        console.log('Server timezone date (ISO):', today);
+        console.log('Attendance today request received');
         
-        // Check what dates exist in attendance table
-        const [existingDates] = await pool.query(
-            `SELECT DISTINCT checkin_date FROM attendance ORDER BY checkin_date DESC LIMIT 5`
-        );
-        console.log('Existing attendance dates:', existingDates);
-        
-        // Try multiple date formats
-        const todayObj = new Date();
-        const todayString = todayObj.toISOString().split('T')[0];
-        const todayFormatted = todayObj.getFullYear() + '-' + 
-                          String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + 
-                          String(todayObj.getDate()).padStart(2, '0');
-        
-        console.log('Date formats to test:');
-        console.log('- ISO string:', todayString);
-        console.log('- Formatted:', todayFormatted);
-        
-        // Count with different formats
-        const [[count1]] = await pool.query(
-            `SELECT COUNT(*) as count FROM attendance WHERE checkin_date = ?`,
-            [todayString]
+        // Use CURDATE() to get current server date
+        const [[count]] = await pool.query(
+            `SELECT COUNT(*) as today_attendance FROM attendance WHERE DATE(checkin_date) = CURDATE()`
         );
         
-        const [[count2]] = await pool.query(
-            `SELECT COUNT(*) as count FROM attendance WHERE checkin_date = ?`,
-            [todayFormatted]
-        );
+        console.log('Today attendance count:', count[0].today_attendance);
         
-        // Get all records for today to verify
-        const [todayRecords] = await pool.query(
-            `SELECT * FROM attendance WHERE checkin_date IN (?, ?)`,
-            [todayString, todayFormatted]
-        );
-        
-        console.log('Count results - ISO:', count1.count);
-        console.log('Count results - Formatted:', count2.count);
-        console.log('Today records found:', todayRecords.length);
-        
-        res.json({ success: true, today_count: Math.max(count1.count, count2.count) });
+        res.json({ success: true, today_attendance: count[0].today_attendance });
     } catch (err) {
         console.error('Attendance today error:', err);
         res.status(500).json({ success: false, message: 'Server error' });
